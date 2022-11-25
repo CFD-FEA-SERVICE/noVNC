@@ -61,6 +61,14 @@ const UI = {
         // Translate the DOM
         l10n.translateDOM();
 
+        // We rely on modern APIs which might not be available in an
+        // insecure context
+        if (!window.isSecureContext) {
+            // FIXME: This gets hidden when connecting
+            UI.showStatus(_("HTTPS is required for full functionality"), 'error');
+        }
+
+        // Try to fetch version number
         fetch('./package.json')
             .then((response) => {
                 if (!response.ok) {
@@ -316,6 +324,10 @@ const UI = {
         document.getElementById("noVNC_cancel_reconnect_button")
             .addEventListener('click', UI.cancelReconnect);
 
+        document.getElementById("noVNC_approve_server_button")
+            .addEventListener('click', UI.approveServer);
+        document.getElementById("noVNC_reject_server_button")
+            .addEventListener('click', UI.rejectServer);
         document.getElementById("noVNC_credentials_button")
             .addEventListener('click', UI.setCredentials);
     },
@@ -325,8 +337,6 @@ const UI = {
             .addEventListener('click', UI.toggleClipboardPanel);
         document.getElementById("noVNC_clipboard_text")
             .addEventListener('change', UI.clipboardSend);
-        document.getElementById("noVNC_clipboard_clear_button")
-            .addEventListener('click', UI.clipboardClear);
     },
 
     // Add a call to save settings when the element changes,
@@ -445,6 +455,8 @@ const UI = {
         // State change closes dialogs as they may not be relevant
         // anymore
         UI.closeAllPanels();
+        document.getElementById('noVNC_verify_server_dlg')
+            .classList.remove('noVNC_open');
         document.getElementById('noVNC_credentials_dlg')
             .classList.remove('noVNC_open');
     },
@@ -577,10 +589,20 @@ const UI = {
 
         // Consider this a movement of the handle
         UI.controlbarDrag = true;
+
+        // The user has "followed" hint, let's hide it until the next drag
+        UI.showControlbarHint(false, false);
     },
 
-    showControlbarHint(show) {
+    showControlbarHint(show, animate=true) {
         const hint = document.getElementById('noVNC_control_bar_hint');
+
+        if (animate) {
+            hint.classList.remove("noVNC_notransition");
+        } else {
+            hint.classList.add("noVNC_notransition");
+        }
+
         if (show) {
             hint.classList.add("noVNC_active");
         } else {
@@ -954,11 +976,6 @@ const UI = {
         Log.Debug("<< UI.clipboardReceive");
     },
 
-    clipboardClear() {
-        document.getElementById('noVNC_clipboard_text').value = "";
-        UI.rfb.clipboardPasteFrom("");
-    },
-
     clipboardSend() {
         const text = document.getElementById('noVNC_clipboard_text').value;
         Log.Debug(">> UI.clipboardSend: " + text.substr(0, 40) + "...");
@@ -1030,6 +1047,7 @@ const UI = {
                            credentials: { password: password } });
         UI.rfb.addEventListener("connect", UI.connectFinished);
         UI.rfb.addEventListener("disconnect", UI.disconnectFinished);
+        UI.rfb.addEventListener("serververification", UI.serverVerify);
         UI.rfb.addEventListener("credentialsrequired", UI.credentials);
         UI.rfb.addEventListener("securityfailure", UI.securityFailed);
         UI.rfb.addEventListener("capabilities", UI.updatePowerButton);
@@ -1118,7 +1136,9 @@ const UI = {
             } else {
                 UI.showStatus(_("Failed to connect to server"), 'error');
             }
-        } else if (UI.getSetting('reconnect', false) === true && !UI.inhibitReconnect) {
+        }
+        // If reconnecting is allowed process it now
+        if (UI.getSetting('reconnect', false) === true && !UI.inhibitReconnect) {
             UI.updateVisualState('reconnecting');
 
             const delay = parseInt(UI.getSetting('reconnect_delay'));
@@ -1151,6 +1171,37 @@ const UI = {
 
 /* ------^-------
  *  /CONNECTION
+ * ==============
+ * SERVER VERIFY
+ * ------v------*/
+
+    async serverVerify(e) {
+        const type = e.detail.type;
+        if (type === 'RSA') {
+            const publickey = e.detail.publickey;
+            let fingerprint = await window.crypto.subtle.digest("SHA-1", publickey);
+            // The same fingerprint format as RealVNC
+            fingerprint = Array.from(new Uint8Array(fingerprint).slice(0, 8)).map(
+                x => x.toString(16).padStart(2, '0')).join('-');
+            document.getElementById('noVNC_verify_server_dlg').classList.add('noVNC_open');
+            document.getElementById('noVNC_fingerprint').innerHTML = fingerprint;
+        }
+    },
+
+    approveServer(e) {
+        e.preventDefault();
+        document.getElementById('noVNC_verify_server_dlg').classList.remove('noVNC_open');
+        UI.rfb.approveServer();
+    },
+
+    rejectServer(e) {
+        e.preventDefault();
+        document.getElementById('noVNC_verify_server_dlg').classList.remove('noVNC_open');
+        UI.disconnect();
+    },
+
+/* ------^-------
+ * /SERVER VERIFY
  * ==============
  *   PASSWORD
  * ------v------*/
@@ -1695,7 +1746,7 @@ const UI = {
 };
 
 // Set up translations
-const LINGUAS = ["cs", "de", "el", "es", "fr", "ja", "ko", "nl", "pl", "pt_BR", "ru", "sv", "tr", "zh_CN", "zh_TW"];
+const LINGUAS = ["cs", "de", "el", "es", "fr", "it", "ja", "ko", "nl", "pl", "pt_BR", "ru", "sv", "tr", "zh_CN", "zh_TW"];
 l10n.setup(LINGUAS);
 if (l10n.language === "en" || l10n.dictionary !== undefined) {
     UI.prime();
