@@ -299,8 +299,8 @@ const UI = {
             .addEventListener('click', UI.toggleAlt);
         document.getElementById("noVNC_send_tab_button")
             .addEventListener('click', UI.sendTab);
-      document.getElementById("noVNC_send_esc_button")
-          .addEventListener('click', UI.sendEsc);
+        document.getElementById("noVNC_send_esc_button")
+            .addEventListener('click', UI.sendEsc);
     //  document.getElementById("noVNC_send_ctrl_alt_del_button")
     //      .addEventListener('click', UI.sendCtrlAltDel);
     },
