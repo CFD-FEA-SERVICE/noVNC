@@ -1,25 +1,21 @@
 {
   "name": "@novnc/novnc",
-  "version": "1.4.0",
+  "version": "1.6.0",
   "description": "An HTML5 VNC client",
-  "browser": "lib/rfb",
-  "directories": {
-    "lib": "lib",
-    "doc": "docs",
-    "test": "tests"
-  },
+  "type": "module",
   "files": [
-    "lib",
+    "core",
+    "vendor",
     "AUTHORS",
     "VERSION",
     "docs/API.md",
     "docs/LIBRARY.md",
     "docs/LICENSE*"
   ],
+  "exports": "./core/rfb.js",
   "scripts": {
     "lint": "eslint app core po/po2js po/xgettext-html tests utils",
-    "test": "karma start karma.conf.js",
-    "prepublish": "node ./utils/convert.js --clean"
+    "test": "karma start karma.conf.cjs"
   },
   "repository": {
     "type": "git",
@@ -44,6 +40,7 @@
     "commander": "latest",
     "eslint": "latest",
     "fs-extra": "latest",
+    "globals": "latest",
     "jsdom": "latest",
     "karma": "latest",
     "karma-mocha": "latest",
@@ -54,10 +51,8 @@
     "karma-mocha-reporter": "latest",
     "karma-safari-launcher": "latest",
     "karma-script-launcher": "latest",
-    "karma-sinon-chai": "latest",
     "mocha": "latest",
-    "node-getopt": "latest",
-    "po2json": "latest",
+    "pofile": "latest",
     "sinon": "latest",
     "sinon-chai": "latest"
   },
